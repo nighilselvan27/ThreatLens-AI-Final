@@ -1,0 +1,40 @@
+import { UploadedFile } from "@/types/upload.types";
+
+export const uploadHistory: UploadedFile[] = [
+  {
+    id: "up-1",
+    name: "invoice_2026_q3.pdf.exe",
+    size: "2.4 MB",
+    type: "application/x-msdownload",
+    progress: 100,
+    status: "completed",
+    riskLevel: "critical",
+    sha256: "a3f1c9e2b8d47f0a1c6e9b2d4f8a0c3e5b7d9f1a2c4e6b8d0f2a4c6e8b0d2f4a",
+    md5: "9e107d9d372bb6826bd81d3542a419d",
+    uploadedAt: "2026-08-03T09:14:00Z",
+  },
+  {
+    id: "up-2",
+    name: "update_installer.msi",
+    size: "18.2 MB",
+    type: "application/x-msi",
+    progress: 100,
+    status: "completed",
+    riskLevel: "safe",
+    sha256: "1f2e3d4c5b6a798091a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f70",
+    md5: "098f6bcd4621d373cade4e832627b4f6",
+    uploadedAt: "2026-08-03T08:56:00Z",
+  },
+  {
+    id: "up-3",
+    name: "quarterly_report.docm",
+    size: "1.1 MB",
+    type: "application/vnd.ms-word.document.macroEnabled.12",
+    progress: 100,
+    status: "completed",
+    riskLevel: "medium",
+    sha256: "d2b3c4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f901",
+    md5: "e99a18c428cb38d5f260853678922e03",
+    uploadedAt: "2026-08-03T08:22:00Z",
+  },
+];
