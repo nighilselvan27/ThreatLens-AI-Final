@@ -9,3 +9,5 @@ __pycache__/
 # Virtual environments
 venv/
 .envs
+# Uploaded files
+backend/storage/uploaded_files/
