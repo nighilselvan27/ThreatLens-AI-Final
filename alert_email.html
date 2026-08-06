@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Malware Alert</title>
+</head>
+<body style="font-family: Arial, sans-serif; background-color: #f5f6fa; margin: 0; padding: 24px;">
+  <table role="presentation" width="100%" style="max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #e0e0e0;">
+    <tr>
+      <td style="background-color: #12162b; padding: 20px 24px;">
+        <span style="color: #ffffff; font-size: 18px; font-weight: bold;">Malware Detection Platform</span>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 24px;">
+        <p style="display:inline-block; background:#E63946; color:#fff; font-size:12px; font-weight:bold; padding:4px 10px; border-radius:4px; text-transform:uppercase;">
+          {{ alert.severity.value }} severity
+        </p>
+        <h2 style="color: #1B2140; margin: 16px 0 8px;">{{ alert.title }}</h2>
+        <p style="color: #444B72; font-size: 14px; line-height: 1.5;">{{ alert.message }}</p>
+
+        <table role="presentation" width="100%" style="margin-top: 16px; font-size: 13px; color: #444B72;">
+          {% if alert.file_name %}
+          <tr><td style="padding: 4px 0;"><strong>File:</strong></td><td>{{ alert.file_name }}</td></tr>
+          {% endif %}
+          {% if alert.threat_type %}
+          <tr><td style="padding: 4px 0;"><strong>Threat type:</strong></td><td>{{ alert.threat_type }}</td></tr>
+          {% endif %}
+          {% if alert.risk_score %}
+          <tr><td style="padding: 4px 0;"><strong>Risk score:</strong></td><td>{{ alert.risk_score }}</td></tr>
+          {% endif %}
+          {% if alert.file_hash_sha256 %}
+          <tr><td style="padding: 4px 0;"><strong>SHA-256:</strong></td><td style="word-break: break-all;">{{ alert.file_hash_sha256 }}</td></tr>
+          {% endif %}
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 16px 24px; background: #f5f6fa; font-size: 11px; color: #8890B5;">
+        This is an automated notification from the Alert &amp; Notification Module. Please review it in the dashboard.
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
