@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { UploadCloud, FileArchive, ScanLine, Hash, Clock } from "lucide-react";
+import { UploadCloud, FileArchive, ScanLine, Hash, Clock, FileWarning } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { fetchUploadHistory, addActiveUpload, updateActiveUploadProgress, completeUpload } from "@/redux/slices/uploadSlice";
 import { uploadApi } from "@/api/uploadApi";
@@ -11,6 +11,42 @@ import { Table, THead, TBody, Tr, Th, Td } from "@/components/ui/Table";
 import { useToast } from "@/hooks/useToast";
 import { truncateHash, timeAgo } from "@/utils/formatters";
 import { UploadedFile } from "@/types/upload.types";
+
+// ── IMPROVEMENT 1: File upload validation ──────────────────────────────
+// Reasonable allow-list for a malware-scanning demo: common executable,
+// document, script, and archive types an analyst would actually submit.
+const ALLOWED_EXTENSIONS = [
+  ".exe", ".dll", ".msi", ".scr", ".bat", ".ps1", ".js",
+  ".pdf", ".doc", ".docx", ".docm", ".xls", ".xlsx",
+  ".zip", ".rar",
+];
+const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
+
+function getExtension(fileName: string): string {
+  const idx = fileName.lastIndexOf(".");
+  return idx === -1 ? "" : fileName.slice(idx).toLowerCase();
+}
+
+function validateFile(file: File): { valid: true } | { valid: false; reason: string } {
+  const ext = getExtension(file.name);
+
+  if (!ALLOWED_EXTENSIONS.includes(ext)) {
+    return {
+      valid: false,
+      reason: `"${file.name}" has an unsupported file type (${ext || "unknown"}). Supported types: ${ALLOWED_EXTENSIONS.join(", ")}.`,
+    };
+  }
+
+  if (file.size > MAX_FILE_SIZE_BYTES) {
+    return {
+      valid: false,
+      reason: `"${file.name}" is ${(file.size / (1024 * 1024)).toFixed(1)} MB, which exceeds the 50 MB limit.`,
+    };
+  }
+
+  return { valid: true };
+}
+// ─────────────────────────────────────────────────────────────────────
 
 export default function UploadPage() {
   const dispatch = useAppDispatch();
@@ -26,7 +62,16 @@ export default function UploadPage() {
   const handleFiles = useCallback(
     async (files: FileList | null) => {
       if (!files || files.length === 0) return;
+
       for (const file of Array.from(files)) {
+        // Validate before doing anything else — invalid files never start
+        // the simulated scan and never touch Redux state.
+        const validation = validateFile(file);
+        if (!validation.valid) {
+          toast({ title: "File rejected", description: validation.reason, variant: "error" });
+          continue;
+        }
+
         const id = `up-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         const draft: UploadedFile = {
           id,
@@ -85,9 +130,18 @@ export default function UploadPage() {
               <UploadCloud className="h-7 w-7 text-accent-cyan" />
             </div>
             <p className="font-medium text-slate-100 mb-1">Drag & drop files to scan</p>
-            <p className="text-sm text-muted mb-5">or browse from your device — executables, documents, and archives supported</p>
+            <p className="text-sm text-muted mb-2">or browse from your device — executables, documents, and archives supported</p>
+            <p className="text-xs text-slate-500 mb-5">
+              Supported: {ALLOWED_EXTENSIONS.join(", ")} · Max size: 50 MB
+            </p>
             <label className="inline-flex items-center justify-center gap-2 rounded-lg font-medium h-10 px-4 text-sm bg-gradient-to-r from-accent-blue to-accent-cyan text-slate-950 hover:shadow-glow hover:brightness-110 cursor-pointer transition-all">
-              <input type="file" multiple className="hidden" onChange={(e) => handleFiles(e.target.files)} />
+              <input
+                type="file"
+                multiple
+                accept={ALLOWED_EXTENSIONS.join(",")}
+                className="hidden"
+                onChange={(e) => handleFiles(e.target.files)}
+              />
               Browse Files
             </label>
           </div>
@@ -145,42 +199,92 @@ export default function UploadPage() {
             <CardHeader>
               <CardTitle>Scan Result</CardTitle>
             </CardHeader>
+
             {selectedResult ? (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-300 truncate max-w-[65%]">{selectedResult.name}</span>
-                  <Badge severity={(selectedResult.riskLevel as any) ?? "safe"} />
-                </div>
-                <div className="rounded-lg bg-background-surface border border-border p-3 space-y-2.5 text-xs">
-                  <div className="flex items-start gap-2">
-                    <Hash className="h-3.5 w-3.5 text-muted mt-0.5 shrink-0" />
-                    <div>
-                      <p className="text-muted mb-0.5">SHA-256</p>
-                      <p className="font-mono text-slate-300 break-all">{truncateHash(selectedResult.sha256 ?? "—", 14)}</p>
+              // ── IMPROVEMENT 2: result organized into clear sections ──
+              <div className="space-y-5">
+                {/* B. Scan Result */}
+                <div>
+                  <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2.5">
+                    Scan Result
+                  </p>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted">Status</span>
+                      <span className="text-slate-200 capitalize">{selectedResult.status}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted">Risk Level</span>
+                      <Badge severity={(selectedResult.riskLevel as any) ?? "safe"} />
                     </div>
                   </div>
-                  <div className="flex items-start gap-2">
-                    <Hash className="h-3.5 w-3.5 text-muted mt-0.5 shrink-0" />
-                    <div>
-                      <p className="text-muted mb-0.5">MD5</p>
-                      <p className="font-mono text-slate-300 break-all">{selectedResult.md5}</p>
+                </div>
+
+                {/* A. File Information */}
+                <div className="border-t border-white/5 pt-4">
+                  <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2.5">
+                    File Information
+                  </p>
+                  <div className="space-y-1.5 text-sm">
+                    <div className="flex justify-between gap-3">
+                      <span className="text-muted shrink-0">Name</span>
+                      <span className="text-slate-200 truncate text-right">{selectedResult.name}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted">Size</span>
+                      <span className="text-slate-200">{selectedResult.size}</span>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <span className="text-muted shrink-0">Type</span>
+                      <span className="text-slate-200 truncate text-right">{selectedResult.type}</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-3.5 w-3.5 text-muted shrink-0" />
-                    <p className="text-slate-300">{timeAgo(selectedResult.uploadedAt)}</p>
+                </div>
+
+                {/* C. Analysis Details */}
+                <div className="border-t border-white/5 pt-4">
+                  <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2.5">
+                    Analysis Details
+                  </p>
+                  <div className="rounded-lg bg-background-surface border border-border p-3 space-y-2.5 text-xs">
+                    <div className="flex items-start gap-2">
+                      <Hash className="h-3.5 w-3.5 text-muted mt-0.5 shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-muted mb-0.5">SHA-256</p>
+                        <p className="font-mono text-slate-300 break-all">
+                          {truncateHash(selectedResult.sha256 ?? "—", 14)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Hash className="h-3.5 w-3.5 text-muted mt-0.5 shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-muted mb-0.5">MD5</p>
+                        <p className="font-mono text-slate-300 break-all">{selectedResult.md5}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-3.5 w-3.5 text-muted shrink-0" />
+                      <p className="text-slate-300">Scanned {timeAgo(selectedResult.uploadedAt)}</p>
+                    </div>
                   </div>
+                  <p className="text-[11px] text-slate-500 mt-2 leading-relaxed">
+                    Demo mode: risk level and hash values shown here are simulated mock data for
+                    UI demonstration, not output from a real malware-detection engine.
+                  </p>
                 </div>
-                <div className="text-xs text-muted">
-                  File size: <span className="text-slate-300">{selectedResult.size}</span> · Type:{" "}
-                  <span className="text-slate-300">{selectedResult.type}</span>
-                </div>
+
                 <Button variant="secondary" className="w-full" size="sm">
                   View Full Report
                 </Button>
               </div>
             ) : (
-              <p className="text-sm text-muted">Upload a file to see static analysis results and risk classification here.</p>
+              <div className="text-center py-6">
+                <FileWarning className="h-6 w-6 text-slate-700 mx-auto mb-3" />
+                <p className="text-sm text-muted">
+                  Upload a file to see static analysis results and risk classification here.
+                </p>
+              </div>
             )}
           </Card>
         </div>
