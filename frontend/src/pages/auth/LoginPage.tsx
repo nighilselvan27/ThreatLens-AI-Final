@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate } from "react-router-dom";
@@ -11,8 +11,23 @@ import Button from "@/components/ui/Button";
 import { useToast } from "@/hooks/useToast";
 import { ROUTES } from "@/constants/routes";
 
+// Demo account picker — like a "choose an account" list. Purely a UI
+// convenience for testing/demoing RBAC; selecting one just fills in the
+// email (and a default password) field. It does NOT log the user in by
+// itself and does NOT let anyone pick their own role — the actual role is
+// still looked up from the email in authApi.ts, exactly as before.
+const DEMO_ACCOUNTS = [
+  { email: "analyst@example.com", label: "Security Analyst", dotClass: "bg-accent-cyan" },
+  { email: "soc@example.com", label: "SOC Team Member", dotClass: "bg-accent-blue" },
+  { email: "admin@example.com", label: "Administrator", dotClass: "bg-accent-purple" },
+  { email: "researcher@example.com", label: "Researcher", dotClass: "bg-severity-medium" },
+];
+const DEMO_PASSWORD = "password123";
+
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
+  const [showAccountPicker, setShowAccountPicker] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -21,11 +36,29 @@ export default function LoginPage() {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "", password: "", rememberMe: false },
   });
+
+  // Close the picker when clicking anywhere outside it.
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setShowAccountPicker(false);
+      }
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, []);
+
+  function handleSelectDemoAccount(account: (typeof DEMO_ACCOUNTS)[number]) {
+    setValue("email", account.email, { shouldValidate: true });
+    setValue("password", DEMO_PASSWORD, { shouldValidate: true });
+    setShowAccountPicker(false);
+  }
 
   async function onSubmit(values: LoginFormValues) {
     dispatch(clearAuthError());
@@ -56,7 +89,7 @@ export default function LoginPage() {
       )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-        <div>
+        <div className="relative" ref={pickerRef}>
           <label className="text-xs font-medium text-slate-400 mb-1.5 block">Email address</label>
           <div className="relative">
             <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
@@ -65,10 +98,39 @@ export default function LoginPage() {
               placeholder="you@company.com"
               className="pl-10"
               error={errors.email?.message}
+              onFocus={() => setShowAccountPicker(true)}
               {...register("email")}
             />
           </div>
           {errors.email && <p className="text-xs text-severity-critical mt-1.5">{errors.email.message}</p>}
+
+          {/* Demo account picker — appears when the email field is focused */}
+          {showAccountPicker && (
+            <div className="absolute z-20 mt-1.5 w-full glass-panel p-1.5">
+              <p className="px-2.5 pt-1.5 pb-2 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                Choose a demo account
+              </p>
+              {DEMO_ACCOUNTS.map((account) => (
+                <button
+                  key={account.email}
+                  type="button"
+                  onMouseDown={(e) => {
+                    // onMouseDown fires before the input's onBlur, so the
+                    // click registers before the picker would otherwise close.
+                    e.preventDefault();
+                    handleSelectDemoAccount(account);
+                  }}
+                  className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-left hover:bg-white/5 transition-colors"
+                >
+                  <span className={`h-2 w-2 rounded-full shrink-0 ${account.dotClass}`} />
+                  <span className="min-w-0">
+                    <span className="block text-sm text-slate-100">{account.label}</span>
+                    <span className="block text-xs text-muted truncate">{account.email}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div>
@@ -114,7 +176,7 @@ export default function LoginPage() {
       </form>
 
       <p className="text-xs text-center text-muted mt-6">
-        Demo credentials: any email · password 8+ characters
+        Click the email field above to pick a demo account · password is filled in automatically
       </p>
     </div>
   );

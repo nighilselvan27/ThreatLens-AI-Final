@@ -12,8 +12,22 @@ interface AuthState {
 
 const persistedToken = localStorage.getItem("threatlens_token");
 
+// The full user (name, email, role) is now persisted too — not just the
+// token. Otherwise, typing a URL directly (which reloads the whole app)
+// keeps you "logged in" via the token but forgets which role you were,
+// breaking role checks and showing a generic fallback name.
+function getPersistedUser(): User | null {
+  const raw = localStorage.getItem("threatlens_user");
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as User;
+  } catch {
+    return null;
+  }
+}
+
 const initialState: AuthState = {
-  user: null,
+  user: getPersistedUser(),
   token: persistedToken,
   isAuthenticated: !!persistedToken,
   status: "idle",
@@ -55,6 +69,7 @@ const authSlice = createSlice({
         state.token = action.payload.token;
         state.isAuthenticated = true;
         localStorage.setItem("threatlens_token", action.payload.token);
+        localStorage.setItem("threatlens_user", JSON.stringify(action.payload.user));
       })
       .addCase(loginUser.rejected, (state, action) => {
         state.status = "failed";
@@ -65,6 +80,7 @@ const authSlice = createSlice({
         state.token = null;
         state.isAuthenticated = false;
         localStorage.removeItem("threatlens_token");
+        localStorage.removeItem("threatlens_user");
       });
   },
 });

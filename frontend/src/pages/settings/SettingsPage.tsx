@@ -4,6 +4,7 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import { useToast } from "@/hooks/useToast";
+import { ROLE_LABELS } from "@/constants/roles";
 
 export default function SettingsPage() {
   const user = useAppSelector((s) => s.auth.user);
@@ -29,7 +30,7 @@ export default function SettingsPage() {
             </div>
             <div>
               <p className="font-medium text-slate-100">{user?.name ?? "Analyst"}</p>
-              <p className="text-sm text-muted capitalize">{user?.role ?? "analyst"}</p>
+              <p className="text-sm text-muted">{user ? ROLE_LABELS[user.role] : "Security Analyst"}</p>
             </div>
           </div>
           <div>

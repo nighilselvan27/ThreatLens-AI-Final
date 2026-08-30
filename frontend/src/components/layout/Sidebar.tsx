@@ -18,21 +18,29 @@ import { toggleSidebar } from "@/redux/slices/uiSlice";
 import { logoutUser } from "@/redux/slices/authSlice";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@/constants/routes";
+import { canAccess, PageKey } from "@/constants/roles";
 
-const NAV_ITEMS = [
-  { to: ROUTES.DASHBOARD, label: "Dashboard", icon: LayoutDashboard },
-  { to: ROUTES.UPLOAD, label: "Upload", icon: UploadCloud },
-  { to: ROUTES.REPORTS, label: "Reports", icon: FileBarChart2 },
-  { to: ROUTES.ANALYTICS, label: "Analytics", icon: LineChart },
-  { to: ROUTES.ALERTS, label: "Alerts", icon: BellRing },
-  { to: "/threats/thr-1001", label: "Threat Details", icon: Bug },
-  { to: ROUTES.SETTINGS, label: "Settings", icon: Settings },
+const NAV_ITEMS: { to: string; label: string; icon: typeof LayoutDashboard; page: PageKey }[] = [
+  { to: ROUTES.DASHBOARD, label: "Dashboard", icon: LayoutDashboard, page: "dashboard" },
+  { to: ROUTES.UPLOAD, label: "Upload", icon: UploadCloud, page: "upload" },
+  { to: ROUTES.REPORTS, label: "Reports", icon: FileBarChart2, page: "reports" },
+  { to: ROUTES.ANALYTICS, label: "Analytics", icon: LineChart, page: "analytics" },
+  { to: ROUTES.ALERTS, label: "Alerts", icon: BellRing, page: "alerts" },
+  { to: "/threats/thr-1001", label: "Threat Details", icon: Bug, page: "threatDetails" },
+  { to: ROUTES.SETTINGS, label: "Settings", icon: Settings, page: "settings" },
 ];
 
 export default function Sidebar() {
   const collapsed = useAppSelector((s) => s.ui.sidebarCollapsed);
+  const user = useAppSelector((s) => s.auth.user);
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+
+  // Sidebar filtering is a convenience (don't show links the user can't
+  // use) — it is NOT the security boundary. The actual page-level check
+  // happens in RequireRole inside AppRoutes.tsx, so even if someone types
+  // a restricted URL directly, they're still blocked.
+  const visibleNavItems = NAV_ITEMS.filter((item) => canAccess(user?.role, item.page));
 
   async function handleLogout() {
     await dispatch(logoutUser());
@@ -58,7 +66,7 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
-        {NAV_ITEMS.map((item) => (
+        {visibleNavItems.map((item) => (
           <NavLink
             key={item.label}
             to={item.to}
