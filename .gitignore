@@ -6,8 +6,14 @@ ml_model/dataset/processed/
 __pycache__/
 *.pyc
 
+# Local Database & Environment files
+*.db
+backend/threatlens.db
+.env
+.env.*
+
 # Virtual environments
 venv/
 .envs
 # Uploaded files
-backend/storage/uploaded_files/
+backend/storage/uploaded_files/
