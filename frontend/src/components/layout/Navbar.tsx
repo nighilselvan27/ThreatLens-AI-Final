@@ -1,4 +1,4 @@
-import { Bell, Search, Sun, Moon, ChevronDown, User as UserIcon, Settings, LogOut } from "lucide-react";
+import { Bell, Search, Sun, Moon, ChevronDown, User as UserIcon, Settings, LogOut, Menu } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { toggleDarkMode } from "@/redux/slices/uiSlice";
 import { logoutUser } from "@/redux/slices/authSlice";
@@ -6,7 +6,7 @@ import { Dropdown, DropdownItem } from "@/components/ui/Dropdown";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@/constants/routes";
 
-export default function Navbar() {
+export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const dispatch = useAppDispatch();
   const darkMode = useAppSelector((s) => s.ui.darkMode);
   const user = useAppSelector((s) => s.auth.user);
@@ -20,8 +20,16 @@ export default function Navbar() {
   }
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-border bg-background/80 backdrop-blur-xl px-4 md:px-6">
-      <div className="relative flex-1 max-w-md">
+    <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border bg-background/80 backdrop-blur-xl px-4 md:px-6">
+      <button
+        onClick={onMenuClick}
+        aria-label="Open menu"
+        className="md:hidden h-9 w-9 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-100 hover:bg-white/5 transition-colors shrink-0"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
+
+      <div className="relative flex-1 max-w-md hidden sm:block">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
         <input
           type="search"
