@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { Download, Hash, FileWarning, Clock, ChevronLeft } from "lucide-react";
+import { Download, Hash, FileWarning, Clock, ChevronLeft, Brain } from "lucide-react";
 import { threatApi } from "@/api/threatApi";
 import { Threat } from "@/types/threat.types";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
@@ -9,6 +9,24 @@ import Button from "@/components/ui/Button";
 import Skeleton from "@/components/ui/Skeleton";
 import { formatDateTime } from "@/utils/formatters";
 import { useToast } from "@/hooks/useToast";
+
+// ── PLACEHOLDER — AI/ML output ──────────────────────────────────────────
+// These values are static mock data only, standing in for the real
+// inference result until the AI/ML pipeline is integrated. The teammate
+// building the model will provide the exact API/JSON shape later; at that
+// point these three fields (prediction, confidence, reasons) get replaced
+// with real values from the response — no other UI change should be
+// needed since the layout below is already built to hold this shape.
+const AI_ANALYSIS_PLACEHOLDER = {
+  prediction: "Malware",
+  confidence: 97.4,
+  reasons: [
+    "High entropy in the executable section, consistent with packing or obfuscation",
+    "Suspicious API call sequence resembling a process injection pattern",
+    "Matches known behavioral signature associated with trojan droppers",
+  ],
+};
+// ─────────────────────────────────────────────────────────────────────
 
 export default function ThreatDetailsPage() {
   const { id } = useParams();
@@ -88,6 +106,37 @@ export default function ThreatDetailsPage() {
                 </span>
               </div>
               <p className="text-sm text-slate-400 flex-1">{threat.description}</p>
+            </div>
+          </Card>
+
+          {/* AI Model Analysis (placeholder pending ML integration) */}
+          <Card>
+            <CardHeader>
+              <CardTitle>AI Model Analysis</CardTitle>
+              <Brain className="h-4 w-4 text-muted" />
+            </CardHeader>
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <p className="text-xs text-muted mb-1">Prediction</p>
+                <p className="text-sm font-semibold text-slate-100">{AI_ANALYSIS_PLACEHOLDER.prediction}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted mb-1">Confidence</p>
+                <p className="text-sm font-semibold text-slate-100">{AI_ANALYSIS_PLACEHOLDER.confidence}%</p>
+              </div>
+            </div>
+            <div className="border-t border-white/5 pt-4">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
+                Detection Insights
+              </p>
+              <ul className="space-y-1.5">
+                {AI_ANALYSIS_PLACEHOLDER.reasons.map((reason, i) => (
+                  <li key={i} className="text-sm text-slate-300 flex items-start gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-accent-purple mt-1.5 shrink-0" />
+                    {reason}
+                  </li>
+                ))}
+              </ul>
             </div>
           </Card>
 
