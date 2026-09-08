@@ -3,6 +3,7 @@ import os
 # Force a clean in-memory SQLite DB and disabled auth for the whole test
 # session, before any app module is imported.
 os.environ["ALERTS_DATABASE_URL"] = "sqlite:///:memory:"
+os.environ["ALERT_INGEST_API_KEY"] = "demo-internal-key"
 os.environ["ALERTS_AUTH_ENABLED"] = "false"
 os.environ["NOTIFICATIONS_ENABLED"] = "true"
 os.environ.pop("SMTP_HOST", None)  # ensure notifier falls back to console
@@ -23,7 +24,7 @@ def db_session():
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    import app.models.alert  # noqa: F401
+    import app.alerts.models  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

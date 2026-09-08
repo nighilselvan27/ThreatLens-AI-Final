@@ -15,7 +15,7 @@ app's startup instead of the standalone startup event below.
 from fastapi import FastAPI
 
 from app.database import init_db
-from app.routes.alerts import router as alerts_router
+from app.alerts.router import router as alerts_router
 
 app = FastAPI(title="ThreatLens AI — Alert & Notification Module (Member 6)")
 

@@ -1,94 +1,183 @@
 import pytest
+import uuid
 
-from app.models.alert import AlertSeverity, AlertStatus
-from app.schemas.integration import ThreatDetectionResult
-from app.services import alert_service
+from app.alerts.adapters import build_alert_from_classification_event, is_alertable
+from app.alerts.models import AlertStatus, Severity
+from app.alerts.service import (
+    create_alert,
+    get_alert,
+    list_alerts,
+    mark_as_read,
+    resolve_alert,
+    update_status,
+)
+from app.alerts.schemas import AlertCreate
 
 
-def make_detection(**overrides) -> ThreatDetectionResult:
-    base = dict(
-        detection_id="det-001",
-        file_id="file-001",
-        malware_family="Trojan",
-        risk_score=82.0,
-        confidence_score=0.91,
-        source_module="classification",
+def make_detection(**overrides):
+    data = {
+        "detection_id": "det-001",
+        "risk_score": 82.0,
+        "file_id": "file-001",
+        "malware_family": "Trojan",
+        "malware_probability": 0.91,
+        "source_module": "classification",
+    }
+    data.update(overrides)
+    return data
+
+
+def make_payload(**overrides):
+    detection = make_detection(**overrides)
+    return build_alert_from_classification_event(detection)
+
+
+def test_create_alert_from_classification_event(db_session):
+    payload = make_payload(risk_score=82.0)
+    alert, created = create_alert(db_session, payload)
+
+    assert created is True
+    assert alert.severity == Severity.HIGH
+    assert alert.status == AlertStatus.DETECTED
+    assert alert.source_reference_id == "det-001"
+    assert alert.malware_probability == 0.91
+
+
+def test_low_probability_detection_is_not_alertable():
+    assert is_alertable(0.1) is False
+
+    with pytest.raises(ValueError):
+        build_alert_from_classification_event(
+            make_detection(malware_probability=0.1)
+        )
+
+
+@pytest.mark.parametrize(
+    "risk_score,expected_severity",
+    [
+        (95, Severity.CRITICAL),
+        (80, Severity.HIGH),
+        (60, Severity.MEDIUM),
+        (20, Severity.LOW),
+    ],
+)
+def test_risk_score_severity_mapping(risk_score, expected_severity):
+    payload = make_payload(risk_score=risk_score)
+    assert payload.severity == expected_severity
+
+
+def test_duplicate_detection_id_does_not_create_second_alert(db_session):
+    payload = make_payload()
+
+    first, created_first = create_alert(db_session, payload)
+    second, created_second = create_alert(db_session, payload)
+
+    assert created_first is True
+    assert created_second is False
+    assert first.id == second.id
+    assert len(list_alerts(
+        db_session,
+        requester_role="Security Analyst",
+        requester_email="analyst@example.com",
+    )) == 1
+
+
+def test_get_alert(db_session):
+    payload = make_payload()
+    alert, _ = create_alert(db_session, payload)
+
+    found = get_alert(db_session, alert.id)
+
+    assert found is not None
+    assert found.id == alert.id
+
+
+def test_get_missing_alert_returns_none(db_session):
+    assert get_alert(db_session, uuid.uuid4()) is None
+
+
+def test_mark_as_read(db_session):
+    payload = make_payload()
+    alert, _ = create_alert(db_session, payload)
+
+    updated = mark_as_read(db_session, alert.id)
+
+    assert updated is not None
+    assert updated.is_read is True
+
+
+def test_update_status(db_session):
+    payload = make_payload()
+    alert, _ = create_alert(db_session, payload)
+
+    updated = update_status(
+        db_session,
+        alert.id,
+        AlertStatus.UNDER_INVESTIGATION,
     )
-    base.update(overrides)
-    return ThreatDetectionResult(**base)
+
+    assert updated.status == AlertStatus.UNDER_INVESTIGATION
 
 
-# ---- Normal cases ----
+def test_resolve_alert_sets_resolved_at(db_session):
+    payload = make_payload()
+    alert, _ = create_alert(db_session, payload)
 
-def test_create_alert_from_high_risk_detection(db_session):
-    detection = make_detection(risk_score=82.0)
-    alert = alert_service.create_alert_from_detection(db_session, detection)
+    resolved = resolve_alert(db_session, alert.id)
 
-    assert alert.severity == AlertSeverity.HIGH
-    assert alert.recipient_role == "security_analyst"
-    assert alert.status == AlertStatus.NEW
-    assert alert.notified is True
-    assert alert.notification_channel == "console"
-
-
-def test_create_alert_low_risk_routes_to_soc(db_session):
-    detection = make_detection(detection_id="det-002", risk_score=20.0)
-    alert = alert_service.create_alert_from_detection(db_session, detection)
-
-    assert alert.severity == AlertSeverity.LOW
-    assert alert.recipient_role == "soc_team"
+    assert resolved.status == AlertStatus.RESOLVED
+    assert resolved.resolved_at is not None
 
 
 def test_list_alerts_filters_by_severity(db_session):
-    alert_service.create_alert_from_detection(db_session, make_detection(detection_id="a", risk_score=95))
-    alert_service.create_alert_from_detection(db_session, make_detection(detection_id="b", risk_score=10))
+    create_alert(db_session, make_payload(
+        detection_id="critical-1",
+        risk_score=95,
+    ))
+    create_alert(db_session, make_payload(
+        detection_id="low-1",
+        risk_score=20,
+    ))
 
-    critical_only = alert_service.list_alerts(db_session, severity_filter=AlertSeverity.CRITICAL)
-    assert len(critical_only) == 1
-    assert critical_only[0].detection_id == "a"
-
-
-def test_update_alert_status_sets_resolved_at(db_session):
-    alert = alert_service.create_alert_from_detection(db_session, make_detection())
-    updated = alert_service.update_alert_status(db_session, alert.id, AlertStatus.RESOLVED)
-
-    assert updated.status == AlertStatus.RESOLVED
-    assert updated.resolved_at is not None
-
-
-# ---- Edge cases ----
-
-def test_duplicate_detection_id_does_not_create_second_alert(db_session):
-    detection = make_detection(detection_id="dup-1")
-    first = alert_service.create_alert_from_detection(db_session, detection)
-    second = alert_service.create_alert_from_detection(db_session, detection)
-
-    assert first.id == second.id
-    all_alerts = alert_service.list_alerts(db_session)
-    assert len(all_alerts) == 1
-
-
-def test_missing_optional_fields_still_creates_alert(db_session):
-    detection = ThreatDetectionResult(
-        detection_id="minimal-1",
-        risk_score=55.0,
+    critical_only = list_alerts(
+        db_session,
+        requester_role="Security Analyst",
+        requester_email="analyst@example.com",
+        severity=Severity.CRITICAL,
     )
-    alert = alert_service.create_alert_from_detection(db_session, detection)
-    assert alert.malware_family is None
-    assert alert.severity == AlertSeverity.MEDIUM
+
+    assert len(critical_only) == 1
+    assert critical_only[0].source_reference_id == "critical-1"
+
+
+def test_unread_filter(db_session):
+    alert, _ = create_alert(db_session, make_payload())
+
+    unread = list_alerts(
+        db_session,
+        requester_role="Security Analyst",
+        requester_email="analyst@example.com",
+        unread_only=True,
+    )
+
+    assert len(unread) == 1
+
+    mark_as_read(db_session, alert.id)
+
+    unread_after_read = list_alerts(
+        db_session,
+        requester_role="Security Analyst",
+        requester_email="analyst@example.com",
+        unread_only=True,
+    )
+
+    assert len(unread_after_read) == 0
 
 
 def test_invalid_risk_score_rejected():
     with pytest.raises(Exception):
-        ThreatDetectionResult(detection_id="bad-1", risk_score=150.0)
-
-
-def test_update_status_on_nonexistent_alert_returns_none(db_session):
-    result = alert_service.update_alert_status(db_session, "does-not-exist", AlertStatus.RESOLVED)
-    assert result is None
-
-
-# ---- Failure cases ----
-
-def test_get_alert_nonexistent_returns_none(db_session):
-    assert alert_service.get_alert(db_session, "nope") is None
+        AlertCreate(
+            title="Invalid alert",
+            message="Invalid risk score",
+            risk_score=150,
+        )

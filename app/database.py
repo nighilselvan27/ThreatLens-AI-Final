@@ -33,5 +33,5 @@ def get_db():
 def init_db() -> None:
     """Create tables. Call once at startup (or rely on Alembic migrations
     once the team adopts them — see README 'Database Migrations' note)."""
-    import app.models.alert  # noqa: F401  (ensure model is registered)
+    import app.alerts.models  # noqa: F401  (ensure model is registered)
     Base.metadata.create_all(bind=engine)
