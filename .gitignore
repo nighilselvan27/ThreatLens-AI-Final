@@ -1,0 +1,19 @@
+# Ignore datasets
+ml_model/dataset/raw/
+ml_model/dataset/processed/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Local Database & Environment files
+*.db
+backend/threatlens.db
+.env
+.env.*
+
+# Virtual environments
+venv/
+.envs
+# Uploaded files
+backend/storage/uploaded_files/
