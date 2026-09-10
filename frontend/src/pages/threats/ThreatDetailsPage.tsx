@@ -11,20 +11,13 @@ import { formatDateTime } from "@/utils/formatters";
 import { useToast } from "@/hooks/useToast";
 
 // ── PLACEHOLDER — AI/ML output ──────────────────────────────────────────
-// These values are static mock data only, standing in for the real
-// inference result until the AI/ML pipeline is integrated. The teammate
-// building the model will provide the exact API/JSON shape later; at that
-// point these three fields (prediction, confidence, reasons) get replaced
-// with real values from the response — no other UI change should be
-// needed since the layout below is already built to hold this shape.
+// Dummy values only, standing in for the real inference result until the
+// AI/ML pipeline is integrated. Explanation is left empty on purpose —
+// it will be populated once the ML team provides real explanation data.
 const AI_ANALYSIS_PLACEHOLDER = {
   prediction: "Malware",
-  confidence: 97.4,
-  reasons: [
-    "High entropy in the executable section, consistent with packing or obfuscation",
-    "Suspicious API call sequence resembling a process injection pattern",
-    "Matches known behavioral signature associated with trojan droppers",
-  ],
+  malwareProbability: 97.4,
+  detectionModel: "Extra Trees + Tuned LightGBM",
 };
 // ─────────────────────────────────────────────────────────────────────
 
@@ -109,7 +102,7 @@ export default function ThreatDetailsPage() {
             </div>
           </Card>
 
-          {/* AI Model Analysis (placeholder pending ML integration) */}
+          {/* AI Model Analysis (dummy values pending ML integration) */}
           <Card>
             <CardHeader>
               <CardTitle>AI Model Analysis</CardTitle>
@@ -121,22 +114,21 @@ export default function ThreatDetailsPage() {
                 <p className="text-sm font-semibold text-slate-100">{AI_ANALYSIS_PLACEHOLDER.prediction}</p>
               </div>
               <div>
-                <p className="text-xs text-muted mb-1">Confidence</p>
-                <p className="text-sm font-semibold text-slate-100">{AI_ANALYSIS_PLACEHOLDER.confidence}%</p>
+                <p className="text-xs text-muted mb-1">Malware Probability</p>
+                <p className="text-sm font-semibold text-slate-100">
+                  {AI_ANALYSIS_PLACEHOLDER.malwareProbability}%
+                </p>
               </div>
+            </div>
+            <div className="mb-4">
+              <p className="text-xs text-muted mb-1">Detection Model</p>
+              <p className="text-sm font-semibold text-slate-100">{AI_ANALYSIS_PLACEHOLDER.detectionModel}</p>
             </div>
             <div className="border-t border-white/5 pt-4">
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
-                Detection Insights
+                Why was this file classified this way?
               </p>
-              <ul className="space-y-1.5">
-                {AI_ANALYSIS_PLACEHOLDER.reasons.map((reason, i) => (
-                  <li key={i} className="text-sm text-slate-300 flex items-start gap-2">
-                    <span className="h-1.5 w-1.5 rounded-full bg-accent-purple mt-1.5 shrink-0" />
-                    {reason}
-                  </li>
-                ))}
-              </ul>
+              <p className="text-sm text-slate-500 italic">Explanation data will appear here.</p>
             </div>
           </Card>
 
